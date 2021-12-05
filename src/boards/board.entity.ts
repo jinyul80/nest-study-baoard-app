@@ -1,7 +1,7 @@
-import { ExecFileSyncOptionsWithBufferEncoding } from "child_process";
-import { BaseEntity, Column, PrimaryGeneratedColumn } from "typeorm";
-import { BoardStatus } from "./board.model";
+import { BaseEntity, Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { BoardStatus } from "./board-status.enum";
 
+@Entity()
 export class Board extends BaseEntity {
     @PrimaryGeneratedColumn()
     id: number;

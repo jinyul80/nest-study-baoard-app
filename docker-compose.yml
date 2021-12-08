@@ -15,7 +15,7 @@ services:
 
   backend:
     build:
-      context: .
+      context: ./nest-board-app
       dockerfile: ./Dockerfile
     environment:
       - RDS_HOSTNAME=db
@@ -34,7 +34,7 @@ services:
         /app/wait-for-it.sh db:5432 -t 10
         npm run start:dev
     volumes:
-      - ./:/app/
+      - ./nest-board-app/:/app/
 
 volumes:
   postgres_data: null

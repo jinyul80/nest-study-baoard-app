@@ -2,9 +2,8 @@
 .env
 
 # Compiled output
-/dist
-/dist-seeder
-/node_modules
+/nest-board-app/dist
+/nest-board-app/node_modules
 
 # Logs
 logs
@@ -18,8 +17,8 @@ lerna-debug.log*
 .DS_Store
 
 # Tests
-/coverage
-/.nyc_output
+/nest-board-app/coverage
+/nest-board-app/.nyc_output
 
 # IDEs and editors
 /.idea

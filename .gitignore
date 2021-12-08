@@ -1,22 +1,22 @@
 # compiled output
-/dist
-/node_modules
+/nest-board-app/dist
+/nest-board-app/node_modules
 
 # Logs
-logs
-*.log
-npm-debug.log*
-pnpm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
+/nest-board-app/logs
+/nest-board-app/*.log
+/nest-board-app/npm-debug.log*
+/nest-board-app/pnpm-debug.log*
+/nest-board-app/yarn-debug.log*
+/nest-board-app/yarn-error.log*
+/nest-board-app/lerna-debug.log*
 
 # OS
 .DS_Store
 
 # Tests
-/coverage
-/.nyc_output
+/nest-board-app/coverage
+/nest-board-app/.nyc_output
 
 # IDEs and editors
 /.idea

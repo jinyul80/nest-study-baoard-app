@@ -4,7 +4,7 @@ import { AppModule } from './app.module';
 import * as config from 'config';
 
 async function bootstrap() {
-  const logger = new Logger("Main");
+  const logger = new Logger('Main');
   const app = await NestFactory.create(AppModule);
 
   const serverConfig = config.get('server');
@@ -12,5 +12,6 @@ async function bootstrap() {
   await app.listen(port);
 
   logger.log(`Application running on port ${port}`);
+  logger.log(`DB synchronize mode: ${config.get('db').synchronize}`);
 }
 bootstrap();

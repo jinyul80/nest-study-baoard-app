@@ -1,23 +1,35 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepository } from 'typeorm';
-import { BoardStatus } from './board-status.enum';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { Board } from './board.entity';
 import { BoardRepository } from './board.repository';
 import { BoardsService } from './boards.service';
-import { CreateBoardDto } from './dto/create-board.dto';
+
+const mockRepository = () => ({
+  crfeateBoard: jest.fn(),
+  findOne: jest.fn(),
+});
+
+type MockRepository<T = any> = Partial<Record<keyof Repository<T>, jest.Mock>>;
 
 describe('BoardsService', () => {
   let boardService: BoardsService;
-  let boardRepository: BoardRepository;
+  let boardRepository: MockRepository<BoardRepository>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [BoardsService, BoardRepository],
+      providers: [
+        BoardsService,
+        {
+          provide: getRepositoryToken(BoardRepository),
+          useValue: mockRepository(),
+        },
+      ],
     }).compile();
 
     boardService = module.get<BoardsService>(BoardsService);
-    boardRepository = module.get<BoardRepository>(BoardRepository);
+    boardRepository = module.get(getRepositoryToken(BoardRepository));
   });
 
   it('should be defined', () => {
@@ -26,14 +38,14 @@ describe('BoardsService', () => {
 
   describe('findOne', () => {
     it('게시물 ID로 조회', async () => {
-      const id: number = 1;
+      const id = 1;
 
-      const result: Board = new Board();
-      result.id = 1;
-      result.title = "테스트1";
-      result.description = "내용11";
+      const mockBoard = new Board();
+      mockBoard.id = 1;
+      mockBoard.title = '테스트1';
+      mockBoard.description = '내용11';
 
-      jest.spyOn(boardRepository, 'findOne').mockImplementation(async () => result);
+      boardRepository.findOne.mockResolvedValue(mockBoard);
 
       try {
         await boardService.getBoardById(id);
@@ -41,10 +53,9 @@ describe('BoardsService', () => {
         expect(e).toBeInstanceOf(NotFoundException);
       }
 
-      const board = await boardService.getBoardById(id);
-      expect(board).toBeInstanceOf(Board);
-      expect(board.id).toBe(id);
+      const result = await boardService.getBoardById(id);
+      expect(result).toBeInstanceOf(Board);
+      expect(result).toEqual(mockBoard);
     });
   });
-
 });

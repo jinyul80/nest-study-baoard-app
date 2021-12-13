@@ -1,9 +1,31 @@
-import { NotFoundException } from '@nestjs/common';
+import { CanActivate, NotFoundException } from '@nestjs/common';
+import { AuthGuard, PassportModule } from '@nestjs/passport';
 import { Test, TestingModule } from '@nestjs/testing';
-import exp from 'constants';
+import { User } from 'src/auth/user.entity';
+import { Repository } from 'typeorm';
 import { BoardStatus } from './board-status.enum';
 import { BoardsController } from './boards.controller';
 import { BoardsService } from './boards.service';
+
+const mockBoardsService = {
+  // morking 방법 1
+  // 서비스 생성하면서 morking
+  createBoard: jest.fn().mockImplementation((dto, user) =>
+    Promise.resolve({
+      id: Date.now(),
+      title: dto.title,
+      description: dto.description,
+      status: BoardStatus.PUBLIC,
+      user: user.id,
+    }),
+  ),
+  deleteBoard: jest.fn(),
+  getBoardById: jest.fn(),
+  getAllBoards: jest.fn(),
+  updateBoardStatus: jest.fn(),
+};
+
+const mockGuard: CanActivate = { canActivate: jest.fn(() => true) };
 
 describe('BoardsController', () => {
   let controller: BoardsController;
@@ -14,45 +36,25 @@ describe('BoardsController', () => {
       title: '제목1',
       description: '내용1',
       status: BoardStatus.PUBLIC,
+      user: 1,
     },
     {
       id: 2,
       title: '제목2',
       description: '내용2',
       status: BoardStatus.PUBLIC,
+      user: 2,
     },
   ];
 
-  const mockService = {
-    // morking 방법 1
-    // 서비스 생성하면서 morking
-    createBoard: jest.fn().mockImplementation((dto) =>
-      Promise.resolve({
-        id: Date.now(),
-        title: dto.title,
-        description: dto.description,
-        status: BoardStatus.PUBLIC,
-      }),
-    ),
-    deleteBoard: jest.fn().mockImplementation((id: number) => {
-      const found = mockBoards.find((board) => board.id === id);
-
-      if (!found) {
-        throw new NotFoundException(`Can't find Board with id ${id}`);
-      }
-    }),
-    getBoardById: jest.fn(),
-    getAllBoards: jest.fn(),
-    updateBoardStatus: jest.fn(),
-  };
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [PassportModule.register({ defaultStrategy: 'jwt' })],
       controllers: [BoardsController],
-      providers: [BoardsService],
+      providers: [{ provide: BoardsService, useValue: mockBoardsService }],
     })
-      .overrideProvider(BoardsService)
-      .useValue(mockService)
+      .overrideProvider(AuthGuard)
+      .useValue(mockGuard)
       .compile();
 
     controller = module.get<BoardsController>(BoardsController);
@@ -68,37 +70,62 @@ describe('BoardsController', () => {
       description: '내용1',
     };
 
-    expect(await controller.createBoard(dto)).toEqual({
+    const user = new User();
+    user.id = 1;
+    user.username = 'test';
+    user.password = 'test';
+
+    expect(await controller.createBoard(dto, user)).toEqual({
       id: expect.any(Number),
       title: dto.title,
       description: dto.description,
       status: BoardStatus.PUBLIC,
+      user: user.id,
     });
 
-    expect(mockService.createBoard).toHaveBeenCalledWith(dto);
+    expect(mockBoardsService.createBoard).toHaveBeenCalledWith(dto, user);
   });
 
   it('deleteBoard test', async () => {
-    const id = 4;
+    const id = 1;
+
+    const user = new User();
+    user.id = 1;
+    user.username = 'test';
+    user.password = 'test';
+
+    mockBoardsService.deleteBoard.mockImplementation((id: number, user: User) => {
+      const found = mockBoards.find((board) => board.id === id && board.user === user.id);
+
+      if (!found) {
+        throw new NotFoundException(`Can't find Board with id ${id}`);
+      }
+    });
 
     try {
-      controller.deleteBoard(id);
+      controller.deleteBoard(id, user);
     } catch (e) {
       expect(e).toBeInstanceOf(NotFoundException);
     }
 
-    expect(mockService.deleteBoard).toHaveBeenCalledWith(id);
+    expect(mockBoardsService.deleteBoard).toHaveBeenCalledWith(id, user);
   });
 
   it('getAllBoards test', async () => {
+    const user = new User();
+    user.id = 1;
+    user.username = 'test';
+    user.password = 'test';
+
     // morking 방법 2
     // mockBoards 객체를 리턴한다고 가정
-    mockService.getAllBoards.mockResolvedValue(mockBoards);
+    const mockResult = mockBoards.filter((board) => board.user === user.id);
+    mockBoardsService.getAllBoards.mockResolvedValue(mockResult);
 
-    const result = await controller.getAllBoards();
+    const result = await controller.getAllBoards(user);
 
-    expect(mockService.getAllBoards).toHaveBeenCalledTimes(1);
-    expect(result).toEqual(mockBoards);
+    expect(mockBoardsService.getAllBoards).toHaveBeenCalledTimes(1);
+    expect(result).toEqual(mockResult);
   });
 
   describe('getBoardById test', () => {
@@ -108,11 +135,11 @@ describe('BoardsController', () => {
       const mockBoard = mockBoards.find((board) => board.id === id);
 
       // morking 방법 2
-      mockService.getBoardById.mockResolvedValue(mockBoard);
+      mockBoardsService.getBoardById.mockResolvedValue(mockBoard);
 
       const result = await controller.getBoardById(id);
 
-      expect(mockService.getBoardById).toHaveBeenCalledWith(id);
+      expect(mockBoardsService.getBoardById).toHaveBeenCalledWith(id);
       expect(result).toEqual(mockBoard);
     });
 
@@ -120,14 +147,14 @@ describe('BoardsController', () => {
       const id = 100;
 
       // morking 방법 2
-      mockService.getBoardById.mockRejectedValue(new NotFoundException());
+      mockBoardsService.getBoardById.mockRejectedValue(new NotFoundException());
 
       try {
         await controller.getBoardById(id);
       } catch (e) {
         expect(e).toBeInstanceOf(NotFoundException);
       }
-      expect(mockService.getBoardById).toHaveBeenCalledWith(id);
+      expect(mockBoardsService.getBoardById).toHaveBeenCalledWith(id);
     });
   });
 
@@ -136,7 +163,7 @@ describe('BoardsController', () => {
 
     // morking 방법 2
     // 메서드 재 형성
-    mockService.updateBoardStatus.mockImplementation((id, status) => {
+    mockBoardsService.updateBoardStatus.mockImplementation((id, status) => {
       const board = mockBoards.find((board) => board.id === id);
       board.status = status;
 
@@ -148,6 +175,6 @@ describe('BoardsController', () => {
     expect(result.id).toEqual(id);
     expect(result.status).toEqual(BoardStatus.PRIVATE);
 
-    expect(mockService.updateBoardStatus).toHaveBeenCalledWith(id, BoardStatus.PRIVATE);
+    expect(mockBoardsService.updateBoardStatus).toHaveBeenCalledWith(id, BoardStatus.PRIVATE);
   });
 });
